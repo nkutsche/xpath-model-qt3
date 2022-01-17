@@ -1,0 +1,179 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                      http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.nkutsche</groupId>
+    <artifactId>xpath-model-qt3</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    
+    <properties>
+        <saxon.version>9.9.1-1</saxon.version>
+        <xpath.model.version>${project.version}</xpath.model.version>
+        <basex.version>9.6.4</basex.version>
+        
+        <testsuite.checkoutdir>${project.build.directory}/testsuite</testsuite.checkoutdir>
+        <testsuite.checkoutdir-conv>${project.build.directory}/testsuite-conv</testsuite.checkoutdir-conv>
+    </properties>
+    
+    <repositories>
+        <repository>
+            <id>basex</id>
+            <url>http://files.basex.org/maven/</url>
+        </repository>
+    </repositories>
+    
+    <dependencies>
+        <dependency>
+            <groupId>com.nkutsche</groupId>
+            <artifactId>xpath-model</artifactId>
+            <version>${xpath.model.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.basex</groupId>
+            <artifactId>basex</artifactId>
+            <version>${basex.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.xmlunit</groupId>
+            <artifactId>xmlunit-matchers</artifactId>
+            <version>2.8.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    
+    
+    
+    <build>
+        <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.6.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+<!--            
+            Create an XML catalog for dependency resources
+            -->
+            <plugin>
+                <groupId>top.marchand.xml.maven</groupId>
+                <artifactId>catalogBuilder-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>dev-catalog</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>catalog</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+<!--            
+            Checkout QT3Testsuite from Github
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <version>1.8.1</version>
+                <configuration>
+                    <scmVersion>master</scmVersion>
+                    <scmVersionType>branch</scmVersionType>
+                    <basedir>.</basedir>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>checkout-testsuite</id>
+                        <goals>
+                            <goal>checkout</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                        <configuration>
+                            <connectionUrl>scm:git:https://github.com/w3c/qt3tests.git</connectionUrl>
+                            <checkoutDirectory>${testsuite.checkoutdir}</checkoutDirectory>
+                            <basedir>.</basedir>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+<!--            
+            Makes a copy from the checkouted QT3Testsuite
+            -->
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.0.2</version>
+                <executions>
+                    <execution>
+                        <id>copy-testsuite-conv</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${testsuite.checkoutdir-conv}</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${testsuite.checkoutdir}</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            
+<!--            
+            Run a transformation on QT3Testsuite Calalog:
+            - transform also all included test sets 
+            - Parse and re-serialize XPath expressions
+            - Copy everything else
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>xml-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>create-xspec-from-testsuite</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>transform</goal>
+                        </goals>
+                        <configuration>
+                            <forceCreation>true</forceCreation>
+                            <transformationSets>
+                                <transformationSet>
+                                    <dir>${testsuite.checkoutdir}</dir>
+                                    <outputDir>${testsuite.checkoutdir-conv}</outputDir>
+                                    <includes>
+                                        <include>catalog.xml</include>
+                                    </includes>
+                                    <stylesheet>${project.baseUri}/src/main/resources/qt3tsConverter.xsl</stylesheet>
+                                </transformationSet>
+                            </transformationSets>
+                            <catalogs>
+                                <catalog>catalog.xml</catalog>
+                            </catalogs>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>net.sf.saxon</groupId>
+                        <artifactId>Saxon-HE</artifactId>
+                        <version>${saxon.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            
+        </plugins>
+    </build>
+</project>
